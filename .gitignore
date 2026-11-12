@@ -1,0 +1,19 @@
+# Build output
+/bin/
+/dist/
+
+# Test and coverage artifacts
+*.test
+*.out
+coverage.xml
+*.prof
+
+# Local chunkvault repositories
+.chunkvault/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+.DS_Store
+.go/
