@@ -4,7 +4,7 @@ BIN_DIR := bin
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
-.PHONY: all build test cover lint fmt bench clean
+.PHONY: all build test cover lint fmt bench bench-e2e clean
 
 all: lint test build
 
@@ -32,6 +32,10 @@ fmt:
 ## bench: run the chunker benchmarks (reports MB/s)
 bench:
 	go test -run '^$$' -bench . -benchmem ./internal/chunker/
+
+## bench-e2e: run end-to-end put/get benchmarks
+bench-e2e:
+	go test -run '^$$' -bench . -benchtime=3s ./cmd/chunkvault/
 
 ## clean: remove build and coverage artifacts
 clean:
