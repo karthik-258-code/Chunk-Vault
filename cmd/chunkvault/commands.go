@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"text/tabwriter"
@@ -188,6 +189,9 @@ func newPutCmd(repo *string) *cobra.Command {
 			} else {
 				f, err := os.Open(src)
 				if err != nil {
+					if errors.Is(err, fs.ErrNotExist) {
+						return fmt.Errorf("%s: no such file", src)
+					}
 					return err
 				}
 				defer f.Close()

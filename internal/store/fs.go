@@ -91,6 +91,11 @@ func (s *FS) Put(ctx context.Context, key Key, r io.Reader) (bool, error) {
 		return false, fmt.Errorf("store: create fan-out dir: %w", err)
 	}
 	if err := os.Rename(tmpName, dst); err != nil {
+		// On Windows os.Rename fails when the destination already exists.
+		// If another concurrent writer committed the same blob first, that is fine.
+		if _, statErr := os.Stat(dst); statErr == nil {
+			return false, nil // tmp cleaned up by defer
+		}
 		return false, fmt.Errorf("store: commit %s: %w", key, err)
 	}
 	committed = true

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -198,6 +199,9 @@ func TestVersionFlag(t *testing.T) {
 }
 
 func TestGetPreservesExistingMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix permission bits not supported on Windows")
+	}
 	dir := t.TempDir()
 	repo := filepath.Join(dir, "repo")
 	mustRun(t, "", "init", repo)
@@ -224,6 +228,9 @@ func TestGetPreservesExistingMode(t *testing.T) {
 }
 
 func TestGetNewFileModeIs0644(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix permission bits not supported on Windows")
+	}
 	dir := t.TempDir()
 	repo := filepath.Join(dir, "repo")
 	mustRun(t, "", "init", repo)
