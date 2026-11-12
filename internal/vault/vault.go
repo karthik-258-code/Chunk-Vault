@@ -329,7 +329,15 @@ func (v *Vault) Put(ctx context.Context, name string, r io.Reader) (PutStats, er
 		return stats, err
 	}
 	encoded := int64(len(skeleton))
-	var chunks []index.Chunk
+
+	// Phase 1: read all chunks sequentially (chunker is not concurrent-safe).
+	type rawChunk struct {
+		offset int64
+		key    store.Key
+		data   []byte
+		ref    ChunkRef
+	}
+	var raw []rawChunk
 	for {
 		if err := ctx.Err(); err != nil {
 			return stats, err
@@ -341,29 +349,47 @@ func (v *Vault) Put(ctx context.Context, name string, r io.Reader) (PutStats, er
 		if err != nil {
 			return stats, fmt.Errorf("vault: read input: %w", err)
 		}
-		key := v.codec.Key(ch.Data)
-		size := len(ch.Data)
+		// Copy ch.Data: the chunker reuses its internal buffer on the next Next() call.
+		data := make([]byte, len(ch.Data))
+		copy(data, ch.Data)
+		key := v.codec.Key(data)
+		size := len(data)
 		ref := ChunkRef{Hash: key.String(), Size: size}
 		encoded += ref.encodedLen()
-		if len(m.Chunks) > 0 {
+		if len(raw) > 0 {
 			encoded++ // comma between references
 		}
 		if encoded > v.maxManifest {
-			return stats, fmt.Errorf("%w: exceeds the %d byte limit after %d chunks", ErrManifestTooLarge, v.maxManifest, len(m.Chunks))
+			return stats, fmt.Errorf("%w: exceeds the %d byte limit after %d chunks", ErrManifestTooLarge, v.maxManifest, len(raw))
 		}
-		created, stored, err := v.putBlob(ctx, key, ch.Data)
-		if err != nil {
-			return stats, fmt.Errorf("vault: store chunk at offset %d: %w", ch.Offset, err)
-		}
-		chunks = append(chunks, index.Chunk{Key: key, StoredSize: stored, RawSize: int64(size)})
-		m.Chunks = append(m.Chunks, ref)
-		m.Size += int64(size)
+		raw = append(raw, rawChunk{offset: ch.Offset, key: key, data: data, ref: ref})
+	}
+
+	// Phase 2: store chunks in parallel, preserving order in results.
+	type blobResult struct {
+		created bool
+		stored  int64
+	}
+	results, err := workerPool(ctx, raw, defaultWorkers(), func(ctx context.Context, rc rawChunk) (blobResult, error) {
+		created, stored, err := v.putBlob(ctx, rc.key, rc.data)
+		return blobResult{created: created, stored: stored}, err
+	})
+	if err != nil {
+		return stats, fmt.Errorf("vault: store chunk: %w", err)
+	}
+
+	var chunks []index.Chunk
+	for i, rc := range raw {
+		r := results[i]
+		chunks = append(chunks, index.Chunk{Key: rc.key, StoredSize: r.stored, RawSize: int64(len(rc.data))})
+		m.Chunks = append(m.Chunks, rc.ref)
+		m.Size += int64(len(rc.data))
 		stats.TotalChunks++
-		if created {
+		if r.created {
 			stats.NewChunks++
-			stats.NewBytes += int64(size)
+			stats.NewBytes += int64(len(rc.data))
 		} else {
-			stats.DedupBytes += int64(size)
+			stats.DedupBytes += int64(len(rc.data))
 		}
 	}
 	if m.Chunks == nil {
