@@ -16,22 +16,6 @@ func defaultWorkers() int {
 	return n
 }
 
-// putJob is a unit of work for parallelPut.
-type putJob struct {
-	idx      int
-	key      interface{} // store.Key — avoids import cycle; callers cast
-	data     []byte
-	chunkRef interface{} // ChunkRef
-}
-
-// putResult holds the outcome of one putJob.
-type putResult struct {
-	idx     int
-	created bool
-	stored  int64
-	err     error
-}
-
 // workerPool runs fn jobs on workers goroutines, collecting results in
 // submission order. It stops dispatching on the first error but drains
 // in-flight work before returning.

@@ -98,11 +98,6 @@ func passphraseOption(cmd *cobra.Command) vault.Option {
 	})
 }
 
-// openVault opens the local filesystem repository at repo.
-func openVault(cmd *cobra.Command, repo string) (*vault.Vault, error) {
-	return vault.Open(repo, passphraseOption(cmd))
-}
-
 // s3Flags holds the S3 backend flags shared across all commands.
 type s3Flags struct {
 	bucket   string

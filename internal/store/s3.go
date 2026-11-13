@@ -26,21 +26,18 @@ var _ BlobStore = (*S3Store)(nil)
 // NewS3 creates an S3Store. endpoint may be empty to use the default AWS
 // endpoint; set it to a MinIO or other S3-compatible URL for local testing.
 func NewS3(ctx context.Context, bucket, region, endpoint string) (*S3Store, error) {
-	opts := []func(*config.LoadOptions) error{
-		config.WithRegion(region),
-	}
-	if endpoint != "" {
-		opts = append(opts, config.WithEndpointResolverWithOptions(
-			aws.EndpointResolverWithOptionsFunc(func(service, reg string, options ...interface{}) (aws.Endpoint, error) {
-				return aws.Endpoint{URL: endpoint, HostnameImmutable: true}, nil
-			}),
-		))
-	}
-	cfg, err := config.LoadDefaultConfig(ctx, opts...)
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
 		return nil, fmt.Errorf("store: s3 config: %w", err)
 	}
-	return &S3Store{client: s3.NewFromConfig(cfg), bucket: bucket}, nil
+	var s3opts []func(*s3.Options)
+	if endpoint != "" {
+		s3opts = append(s3opts, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+			o.UsePathStyle = true
+		})
+	}
+	return &S3Store{client: s3.NewFromConfig(cfg, s3opts...), bucket: bucket}, nil
 }
 
 // objectKey converts a blob Key to its S3 object key string.
