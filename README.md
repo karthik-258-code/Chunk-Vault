@@ -95,7 +95,7 @@ The passphrase, if needed, goes in the `X-Chunkvault-Passphrase` header. A reque
 
 Everything else (`put`, `get`, `ls`, `rm`, `reindex`, `verify`, `stats`) works the same for both kinds of repository. Use `--repo <dir>` to point at a repository other than `./.chunkvault`. `put -` reads from stdin (with `--name`) and `get <name> -` writes to stdout.
 
-`rm <name>` deletes the name and releases the chunks it used in the index, but leaves all blobs on disk, also chunks that no file uses any more, so it does not free space until the M3 garbage collector exists. Other files that share chunks with the removed one are unaffected.
+`rm <name>` deletes the name and releases the chunks it used in the index, but leaves all blobs on disk, also chunks that no file uses any more, until `chunkvault gc` deletes them. Other files that share chunks with the removed one are unaffected.
 
 `reindex` rebuilds `index.db` from the refs and the manifests they point at, in a temporary file in the repository that is renamed over `index.db` once complete, and prints the number of files and chunks. The index is only a cache of the refs, manifests and blobs, which stay authoritative, so deleting or rebuilding it loses nothing. Run it to repair the index after a crash between writing a file and updating the index (the repository stays readable in the meantime), or to create it for a repository made before the index existed: such a repository fails to open with `repository has no index ... run 'chunkvault reindex'` rather than being rebuilt as a side effect of `get` or `ls`. Do not run other commands on the repository while `reindex` runs.
 
@@ -257,5 +257,5 @@ Numbers vary by machine; run `make bench` for your own. End-to-end `put` through
 - [x] **M2a** – zstd compression; AES-256-GCM encryption with Argon2id key derivation and HKDF subkeys; versioned blob format and `config.json`; `init --encrypt`.
 - [x] **M2b** – bbolt index; `rm`, `reindex`, `verify` and `stats` commands.
 - [x] **M2c** – parallel worker pool; end-to-end benchmarks; SAST cleanup.
-- [ ] **M3** – Mark-and-sweep garbage collection; S3/MinIO backend; REST API (chi); docker-compose.
+- [x] **M3** – Mark-and-sweep garbage collection; S3/MinIO backend; REST API (chi); docker-compose.
 - [ ] **M4** – Snapshots; benchmark results on a real dataset; `docs/design.md`; v1.0.0 release.
