@@ -230,6 +230,6 @@ Numbers vary by machine; run `make bench` for your own. End-to-end `put` through
 - [x] **M1** – Module scaffold, FastCDC chunker, filesystem blob store, vault service, CLI (`init`, `put`, `get`, `ls`), CI.
 - [x] **M2a** – zstd compression; AES-256-GCM encryption with Argon2id key derivation and HKDF subkeys; versioned blob format and `config.json`; `init --encrypt`.
 - [x] **M2b** – bbolt index; `rm`, `reindex`, `verify` and `stats` commands.
-- [ ] **M2c** – parallel worker pool; end-to-end benchmarks; SAST cleanup.
+- [x] **M2c** – parallel worker pool; end-to-end benchmarks; SAST cleanup.
 - [ ] **M3** – Mark-and-sweep garbage collection; S3/MinIO backend; REST API (chi); docker-compose.
 - [ ] **M4** – Snapshots; benchmark results on a real dataset; `docs/design.md`; v1.0.0 release.
