@@ -11,6 +11,9 @@ coverage.xml
 # Local chunkvault repositories
 .chunkvault/
 
+# Rapid property test failure corpus
+internal/vault/testdata/rapid/**/*.fail
+
 # Editors
 .idea/
 .vscode/
