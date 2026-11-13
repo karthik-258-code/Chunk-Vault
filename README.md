@@ -67,6 +67,9 @@ chunkvault reindex                          # rebuild index.db from the stored f
 chunkvault verify [--full]                  # check the repository for missing, corrupt or inconsistent data
 chunkvault stats [--json]                   # files, sizes, dedup and compression ratios, reclaimable space
 chunkvault gc [--dry-run]                   # delete unreferenced chunks (blobs left by rm)
+chunkvault snapshot create <tag>            # snapshot the current set of files
+chunkvault snapshot ls                      # list snapshots
+chunkvault snapshot restore <tag>           # restore files to a snapshot version
 ```
 
 ### REST API (chunkvaultd)
@@ -93,7 +96,7 @@ POST   /v1/verify?full=true    verify (JSON report)
 
 The passphrase, if needed, goes in the `X-Chunkvault-Passphrase` header. A request with the passphrase in a query parameter is rejected with 400.
 
-Everything else (`put`, `get`, `ls`, `rm`, `reindex`, `verify`, `stats`) works the same for both kinds of repository. Use `--repo <dir>` to point at a repository other than `./.chunkvault`. `put -` reads from stdin (with `--name`) and `get <name> -` writes to stdout.
+Everything else (`put`, `get`, `ls`, `rm`, `reindex`, `verify`, `stats`, `gc`, `snapshot`) works the same for both kinds of repository. Use `--repo <dir>` to point at a repository other than `./.chunkvault`. `put -` reads from stdin (with `--name`) and `get <name> -` writes to stdout.
 
 `rm <name>` deletes the name and releases the chunks it used in the index, but leaves all blobs on disk, also chunks that no file uses any more, until `chunkvault gc` deletes them. Other files that share chunks with the removed one are unaffected.
 

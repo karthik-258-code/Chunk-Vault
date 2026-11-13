@@ -140,6 +140,7 @@ func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 		newVerifyCmd(&repo, &s3f),
 		newStatsCmd(&repo, &s3f),
 		newGCCmd(&repo, &s3f),
+		newSnapshotCmd(&repo, &s3f),
 	)
 	return root
 }
@@ -556,6 +557,93 @@ func printStats(w io.Writer, s vault.Stats) {
 	fmt.Fprintf(tw, "Unreferenced chunks:\t%d\n", s.UnreferencedChunks)
 	fmt.Fprintf(tw, "Reclaimable by GC:\t%s\n", humanBytes(s.ReclaimableBytes))
 	_ = tw.Flush()
+}
+
+func newSnapshotCmd(repo *string, s3f *s3Flags) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "snapshot",
+		Short: "Manage point-in-time snapshots of the repository",
+	}
+	cmd.AddCommand(
+		newSnapshotCreateCmd(repo, s3f),
+		newSnapshotLsCmd(repo, s3f),
+		newSnapshotRestoreCmd(repo, s3f),
+	)
+	return cmd
+}
+
+func newSnapshotCreateCmd(repo *string, s3f *s3Flags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "create <tag>",
+		Short: "Take a snapshot of the current repository state",
+		Long: "Record the current set of stored files and their manifest keys as a named\n" +
+			"snapshot. The tag must be a valid file name. Blobs are not copied: a\n" +
+			"snapshot only records which manifest key each file pointed at.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			v, err := openVaultS3(cmd, *repo, s3f)
+			if err != nil {
+				return err
+			}
+			defer v.Close()
+			snap, err := v.CreateSnapshot(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Snapshot %q created at %s (%s)\n",
+				snap.Tag, snap.Created.Format(time.RFC3339), plural(len(snap.Files), "file"))
+			return nil
+		},
+	}
+}
+
+func newSnapshotLsCmd(repo *string, s3f *s3Flags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "ls",
+		Short: "List snapshots",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			v, err := openVaultS3(cmd, *repo, s3f)
+			if err != nil {
+				return err
+			}
+			defer v.Close()
+			snaps, err := v.ListSnapshots(cmd.Context())
+			if err != nil {
+				return err
+			}
+			tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+			fmt.Fprintln(tw, "TAG\tCREATED\tFILES")
+			for _, s := range snaps {
+				fmt.Fprintf(tw, "%s\t%s\t%d\n", s.Tag, s.Created.Format(time.RFC3339), len(s.Files))
+			}
+			return tw.Flush()
+		},
+	}
+}
+
+func newSnapshotRestoreCmd(repo *string, s3f *s3Flags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "restore <tag>",
+		Short: "Restore files to the versions recorded in a snapshot",
+		Long: "Restore files to the versions recorded in the named snapshot. Files whose\n" +
+			"current version already matches the snapshot are left untouched. Files not\n" +
+			"recorded in the snapshot are also left untouched — this is a restore, not a\n" +
+			"rollback: files added after the snapshot are not deleted.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			v, err := openVaultS3(cmd, *repo, s3f)
+			if err != nil {
+				return err
+			}
+			defer v.Close()
+			if err := v.RestoreFromSnapshot(cmd.Context(), args[0]); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Restored from snapshot %q\n", args[0])
+			return nil
+		},
+	}
 }
 
 // humanBytes formats n using binary prefixes.

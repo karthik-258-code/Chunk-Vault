@@ -78,11 +78,12 @@ var (
 // repairs it by rebuilding the index from the refs. Anything destructive that
 // trusts reference counts, such as garbage collection, must run Reindex first.
 type Vault struct {
-	blobs store.BlobStore
-	refs  *store.Refs
-	idx   *index.Index
-	codec *codec.Codec
-	cfg   chunker.Config
+	blobs         store.BlobStore
+	refs          *store.Refs
+	snapshotRefs  *store.Refs
+	idx           *index.Index
+	codec         *codec.Codec
+	cfg           chunker.Config
 	// pass supplies the passphrase of an encrypted repository to Open.
 	pass func() ([]byte, error)
 	now  func() time.Time
@@ -244,6 +245,11 @@ func Open(dir string, opts ...Option) (*Vault, error) {
 		return nil, fmt.Errorf("vault: %w (if %s is damaged rather than in use by another chunkvault process, 'chunkvault reindex' rebuilds it)", err, indexFile)
 	}
 	v.idx = x
+	sr, err := store.NewRefsAt(filepath.Join(dir, "refs", ".snapshots"))
+	if err != nil {
+		return nil, fmt.Errorf("vault: open snapshot refs: %w", err)
+	}
+	v.snapshotRefs = sr
 	return v, nil
 }
 
@@ -283,6 +289,11 @@ func OpenWithStore(dir string, blobs store.BlobStore, opts ...Option) (*Vault, e
 		return nil, fmt.Errorf("vault: %w", err)
 	}
 	v.idx = x
+	sr, err := store.NewRefsAt(filepath.Join(dir, "refs", ".snapshots"))
+	if err != nil {
+		return nil, fmt.Errorf("vault: open snapshot refs: %w", err)
+	}
+	v.snapshotRefs = sr
 	return v, nil
 }
 

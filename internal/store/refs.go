@@ -32,6 +32,16 @@ func NewRefs(root string) (*Refs, error) {
 	return &Refs{dir: dir}, nil
 }
 
+// NewRefsAt opens, creating if necessary, a ref directory at the exact path
+// dir, without appending the standard "refs" subdirectory. Use this for
+// namespaced ref stores such as the snapshot refs.
+func NewRefsAt(dir string) (*Refs, error) {
+	if err := os.MkdirAll(dir, dirPerm); err != nil {
+		return nil, fmt.Errorf("store: create refs dir: %w", err)
+	}
+	return &Refs{dir: dir}, nil
+}
+
 // encodeName makes name safe to use as a single file name. Names are escaped
 // rather than rejected so any non-empty name, including ones containing path
 // separators such as "photos/2024/a.jpg", can be stored. Upper-case letters are
