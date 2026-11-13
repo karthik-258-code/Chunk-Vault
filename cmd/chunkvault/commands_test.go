@@ -90,6 +90,36 @@ func TestEndToEnd(t *testing.T) {
 	}
 }
 
+func TestGCCommand(t *testing.T) {
+	dir := t.TempDir()
+	repo := filepath.Join(dir, "repo")
+	mustRun(t, "", "init", repo)
+
+	// Put a file, remove it, then gc.
+	src := filepath.Join(dir, "f.bin")
+	writeRandomFile(t, src, 42, 256*1024)
+	mustRun(t, "", "--repo", repo, "put", src)
+	mustRun(t, "", "--repo", repo, "rm", "f.bin")
+
+	// Dry run reports reclaimable chunks without deleting.
+	out, _ := mustRun(t, "", "--repo", repo, "gc", "--dry-run")
+	if !strings.Contains(out, "Would collect") {
+		t.Fatalf("dry-run gc output = %q", out)
+	}
+
+	// Real gc frees the space.
+	out, _ = mustRun(t, "", "--repo", repo, "gc")
+	if !strings.Contains(out, "Collected") {
+		t.Fatalf("gc output = %q", out)
+	}
+
+	// A second gc run should collect nothing.
+	out, _ = mustRun(t, "", "--repo", repo, "gc")
+	if !strings.Contains(out, "0 chunks") {
+		t.Fatalf("second gc output = %q", out)
+	}
+}
+
 func TestPutAndGetViaStdio(t *testing.T) {
 	repo := filepath.Join(t.TempDir(), "repo")
 	mustRun(t, "", "init", repo)

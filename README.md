@@ -65,6 +65,7 @@ chunkvault rm big.iso                       # remove a stored file (chunk data s
 chunkvault reindex                          # rebuild index.db from the stored files
 chunkvault verify [--full]                  # check the repository for missing, corrupt or inconsistent data
 chunkvault stats [--json]                   # files, sizes, dedup and compression ratios, reclaimable space
+chunkvault gc [--dry-run]                   # delete unreferenced chunks (blobs left by rm)
 ```
 
 Everything else (`put`, `get`, `ls`, `rm`, `reindex`, `verify`, `stats`) works the same for both kinds of repository. Use `--repo <dir>` to point at a repository other than `./.chunkvault`. `put -` reads from stdin (with `--name`) and `get <name> -` writes to stdout.

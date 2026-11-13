@@ -128,6 +128,7 @@ func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 		newReindexCmd(&repo),
 		newVerifyCmd(&repo),
 		newStatsCmd(&repo),
+		newGCCmd(&repo),
 	)
 	return root
 }
@@ -334,8 +335,7 @@ func newRmCmd(repo *string) *cobra.Command {
 		Short: "Remove a stored file",
 		Long: "Remove the file stored as <name>: its name is deleted and the index releases\n" +
 			"the chunks it used. The chunk data stays on disk, also chunks that no file uses\n" +
-			"any more, until the garbage collector (planned for M3) deletes it, so rm does\n" +
-			"not free disk space yet. Other files that share chunks with <name> are not\n" +
+			"any more, until 'chunkvault gc' deletes them, so rm does not free disk space immediately. Other files that share chunks with <name> are not\n" +
 			"affected.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -443,6 +443,42 @@ func plural(n int, noun string) string {
 	return fmt.Sprintf("%d %ss", n, noun)
 }
 
+func newGCCmd(repo *string) *cobra.Command {
+	var dryRun bool
+	cmd := &cobra.Command{
+		Use:   "gc [--dry-run]",
+		Short: "Delete unreferenced chunk blobs (garbage collection)",
+		Long: "Remove chunk blobs that no stored file references, left behind by 'rm' or\n" +
+			"by overwriting a file with 'put'. With --dry-run the blobs are counted and\n" +
+			"sized but not deleted. An encrypted repository needs its passphrase.\n\n" +
+			"Run 'chunkvault verify' first if you are unsure the index is consistent;\n" +
+			"'chunkvault reindex' repairs a stale index before GC sees it.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			v, err := openVault(cmd, *repo)
+			if err != nil {
+				return err
+			}
+			defer v.Close()
+			st, err := v.GC(cmd.Context(), dryRun)
+			if err != nil {
+				return err
+			}
+			w := cmd.OutOrStdout()
+			if dryRun {
+				fmt.Fprintf(w, "Would collect %s chunks (%s)\n",
+					plural(int(st.Collected), "chunk"), humanBytes(st.FreedBytes))
+			} else {
+				fmt.Fprintf(w, "Collected %s, freed %s\n",
+					plural(int(st.Collected), "chunk"), humanBytes(st.FreedBytes))
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "count reclaimable blobs without deleting them")
+	return cmd
+}
+
 func newStatsCmd(repo *string) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
@@ -451,8 +487,7 @@ func newStatsCmd(repo *string) *cobra.Command {
 		Long: "Show the number of files and unique chunks, the logical size of the files,\n" +
 			"the size stored on disk, the deduplication ratio (logical bytes over unique\n" +
 			"raw bytes), the compression ratio (unique raw bytes over stored bytes) and\n" +
-			"the chunks no file references any more, which the garbage collector (planned\n" +
-			"for M3) will be able to reclaim. The figures come from the index; run\n" +
+			"the chunks no file references any more, which 'chunkvault gc' reclaims. The figures come from the index; run\n" +
 			"'chunkvault verify' to check it. With --json the output is one JSON object\n" +
 			"with stable snake_case keys.",
 		Args: cobra.NoArgs,
