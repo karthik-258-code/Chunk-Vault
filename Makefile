@@ -4,13 +4,17 @@ BIN_DIR := bin
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
-.PHONY: all build test cover lint fmt bench bench-e2e clean
+.PHONY: all build build-daemon test cover lint fmt bench bench-e2e docker-up clean
 
 all: lint test build
 
 ## build: compile the chunkvault binary into ./bin
 build:
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/$(BINARY) $(PKG)
+
+## build-daemon: compile the chunkvaultd REST API server into ./bin
+build-daemon:
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/chunkvaultd ./cmd/chunkvaultd
 
 ## test: run all tests with the race detector
 test:
@@ -36,6 +40,10 @@ bench:
 ## bench-e2e: run end-to-end put/get benchmarks
 bench-e2e:
 	go test -run '^$$' -bench . -benchtime=3s ./cmd/chunkvault/
+
+## docker-up: start chunkvaultd + minio via docker-compose
+docker-up:
+	docker compose up --build -d
 
 ## clean: remove build and coverage artifacts
 clean:

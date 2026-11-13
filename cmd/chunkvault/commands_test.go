@@ -897,7 +897,7 @@ func TestReindexErrors(t *testing.T) {
 
 func TestRmAndReindexHelp(t *testing.T) {
 	out, _ := mustRun(t, "", "rm", "--help")
-	if !strings.Contains(out, "garbage collector") || !strings.Contains(out, "stays on disk") {
+	if !strings.Contains(out, "chunkvault gc") || !strings.Contains(out, "stays on disk") {
 		t.Errorf("rm --help does not say blobs stay until garbage collection:\n%s", out)
 	}
 	out, _ = mustRun(t, "", "reindex", "--help")

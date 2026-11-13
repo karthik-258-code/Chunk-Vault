@@ -9,6 +9,7 @@ File data is streamed: `put` and `get` hold only a few chunks (at most 256 KiB e
 ```mermaid
 flowchart LR
     CLI["CLI<br/>(cobra)"] --> Vault["Vault service<br/>internal/vault"]
+    API["REST API<br/>(chi)"] --> Vault
     Vault --> Chunker["Chunker<br/>FastCDC<br/>internal/chunker"]
     Vault --> Codec["Codec<br/>zstd + AES-256-GCM<br/>internal/codec"]
     Vault --> Keys["Keys<br/>Argon2id, HKDF<br/>internal/keys"]
@@ -67,6 +68,30 @@ chunkvault verify [--full]                  # check the repository for missing, 
 chunkvault stats [--json]                   # files, sizes, dedup and compression ratios, reclaimable space
 chunkvault gc [--dry-run]                   # delete unreferenced chunks (blobs left by rm)
 ```
+
+### REST API (chunkvaultd)
+
+```sh
+make build-daemon                           # builds ./bin/chunkvaultd
+chunkvaultd --repo ./.chunkvault --addr :8080
+
+# Or with docker-compose (includes MinIO for S3 backend):
+make docker-up
+```
+
+Endpoints:
+
+```text
+POST   /v1/files/{name}        put (body = file data)
+GET    /v1/files/{name}        get (response = file data)
+DELETE /v1/files/{name}        rm
+GET    /v1/files               ls (JSON array)
+GET    /v1/stats               stats (JSON)
+POST   /v1/gc?dry_run=true     garbage collection
+POST   /v1/verify?full=true    verify (JSON report)
+```
+
+The passphrase, if needed, goes in the `X-Chunkvault-Passphrase` header. A request with the passphrase in a query parameter is rejected with 400.
 
 Everything else (`put`, `get`, `ls`, `rm`, `reindex`, `verify`, `stats`) works the same for both kinds of repository. Use `--repo <dir>` to point at a repository other than `./.chunkvault`. `put -` reads from stdin (with `--name`) and `get <name> -` writes to stdout.
 

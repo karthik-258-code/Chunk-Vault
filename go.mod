@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.48.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.18
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
+	github.com/go-chi/chi/v5 v5.5.0
 	github.com/klauspost/compress v1.17.11
 	github.com/spf13/cobra v1.9.1
 	go.etcd.io/bbolt v1.4.0
