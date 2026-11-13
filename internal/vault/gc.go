@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/index"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/index"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
 )
 
 // GCStats summarises a GC run.
@@ -28,6 +28,8 @@ type GCStats struct {
 // When dryRun is true the sweep reports what would be collected without
 // deleting anything.
 func (v *Vault) GC(ctx context.Context, dryRun bool) (GCStats, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	var stats GCStats
 
 	// Phase 1: snapshot zero-ref keys.

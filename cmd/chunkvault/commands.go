@@ -15,9 +15,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/keys"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/vault"
+	"github.com/karthik-258-code/Chunk-Vault/internal/keys"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/vault"
 )
 
 const (

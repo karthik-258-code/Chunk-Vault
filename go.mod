@@ -1,4 +1,4 @@
-module gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault
+module github.com/karthik-258-code/Chunk-Vault
 
 go 1.24
 

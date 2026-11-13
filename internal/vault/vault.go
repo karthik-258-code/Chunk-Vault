@@ -17,13 +17,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/chunker"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/codec"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/index"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/keys"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/chunker"
+	"github.com/karthik-258-code/Chunk-Vault/internal/codec"
+	"github.com/karthik-258-code/Chunk-Vault/internal/index"
+	"github.com/karthik-258-code/Chunk-Vault/internal/keys"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
 )
 
 const (
@@ -78,6 +79,7 @@ var (
 // repairs it by rebuilding the index from the refs. Anything destructive that
 // trusts reference counts, such as garbage collection, must run Reindex first.
 type Vault struct {
+	mu           sync.RWMutex
 	blobs        store.BlobStore
 	refs         *store.Refs
 	snapshotRefs *store.Refs
@@ -361,6 +363,8 @@ type PutStats struct {
 // Put always checks the blob store, never the index, for chunks that already
 // exist, because the index is only a cache and may lack or lag behind them.
 func (v *Vault) Put(ctx context.Context, name string, r io.Reader) (PutStats, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	var stats PutStats
 	if err := store.ValidateName(name); err != nil {
 		return stats, err
@@ -478,6 +482,8 @@ func (v *Vault) Put(ctx context.Context, name string, r io.Reader) (PutStats, er
 // The chunk and manifest blobs stay in the blob store, also those that no file
 // references any more: nothing deletes blobs until garbage collection exists.
 func (v *Vault) Remove(name string) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	if err := v.refs.Remove(name); err != nil {
 		return err
 	}
@@ -601,6 +607,8 @@ func (v *Vault) rebuildIndex(ctx context.Context, path string) (stats ReindexSta
 // the preceding verified chunks already written to w. It returns an error
 // wrapping store.ErrNotFound if name does not exist.
 func (v *Vault) Get(ctx context.Context, name string, w io.Writer) error {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	m, err := v.manifest(ctx, name)
 	if err != nil {
 		return err
@@ -636,6 +644,8 @@ type Entry struct {
 
 // List returns all stored files ordered by name.
 func (v *Vault) List(ctx context.Context) ([]Entry, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	names, err := v.refs.List()
 	if err != nil {
 		return nil, err

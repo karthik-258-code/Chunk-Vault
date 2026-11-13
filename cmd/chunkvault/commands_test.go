@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/index"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/keys"
+	"github.com/karthik-258-code/Chunk-Vault/internal/index"
+	"github.com/karthik-258-code/Chunk-Vault/internal/keys"
 )
 
 // run executes the CLI with args and returns stdout, stderr and the error.

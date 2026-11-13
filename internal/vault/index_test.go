@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/chunker"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/codec"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/index"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/chunker"
+	"github.com/karthik-258-code/Chunk-Vault/internal/codec"
+	"github.com/karthik-258-code/Chunk-Vault/internal/index"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
 )
 
 // eachMode runs fn for an unencrypted and an encrypted repository. fn gets the

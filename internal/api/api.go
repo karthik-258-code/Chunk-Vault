@@ -2,6 +2,7 @@
 package api
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,16 +11,18 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/vault"
+	"github.com/karthik-258-code/Chunk-Vault/internal/vault"
 )
 
 // NewRouter returns an http.Handler that serves all vault operations.
-// The passphrase, when needed, must be supplied via the
-// X-Chunkvault-Passphrase header; a request that carries it in a query
-// parameter is rejected with 400.
-func NewRouter(v *vault.Vault) http.Handler {
+// If apiKey is non-empty, every request must carry a matching
+// Authorization: Bearer <key> or X-API-Key header.
+func NewRouter(v *vault.Vault, apiKey string) http.Handler {
 	r := chi.NewRouter()
 	r.Use(rejectPassphraseInQuery)
+	if apiKey != "" {
+		r.Use(requireAPIKey(apiKey))
+	}
 
 	r.Get("/v1/files", listHandler(v))
 	r.Post("/v1/files/*", putHandler(v))
@@ -42,6 +45,24 @@ func rejectPassphraseInQuery(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func requireAPIKey(key string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got := r.Header.Get("X-API-Key")
+			if got == "" {
+				if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+					got = strings.TrimPrefix(auth, "Bearer ")
+				}
+			}
+			if subtle.ConstantTimeCompare([]byte(got), []byte(key)) != 1 {
+				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func putHandler(v *vault.Vault) http.HandlerFunc {

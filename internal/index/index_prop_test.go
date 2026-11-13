@@ -9,7 +9,7 @@ import (
 
 	"pgregory.net/rapid"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
 )
 
 // model is an in-memory reference implementation of the index. It keeps only

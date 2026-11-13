@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/index"
+	"github.com/karthik-258-code/Chunk-Vault/internal/index"
 )
 
 // Stats summarises the space a repository uses and how well it deduplicates
@@ -44,6 +44,8 @@ type Stats struct {
 
 // Stats returns the repository statistics, see the type.
 func (v *Vault) Stats(ctx context.Context) (Stats, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	if err := ctx.Err(); err != nil {
 		return Stats{}, err
 	}

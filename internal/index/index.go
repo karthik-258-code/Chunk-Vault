@@ -37,7 +37,7 @@ import (
 
 	"go.etcd.io/bbolt"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
 )
 
 const (

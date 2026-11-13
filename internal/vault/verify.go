@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sort"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/index"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/index"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
 )
 
 // ProblemKind classifies a problem found by Verify.
@@ -152,6 +152,8 @@ func (r *VerifyReport) add(kind ProblemKind, name, key, detail string) {
 // manifests cannot be read the recomputed counts are incomplete, so then only
 // an index count below the recomputed one is reported.
 func (v *Vault) Verify(ctx context.Context, full bool) (VerifyReport, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	rep := VerifyReport{Full: full}
 	names, err := v.refs.List()
 	if err != nil {

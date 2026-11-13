@@ -40,7 +40,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
 )
 
 // Magic identifies a chunkvault blob.

@@ -12,7 +12,7 @@ import (
 
 	"go.etcd.io/bbolt"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/index"
+	"github.com/karthik-258-code/Chunk-Vault/internal/index"
 )
 
 // putRandom stores size random bytes under name and returns the file's

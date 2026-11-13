@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/api"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/vault"
+	"github.com/karthik-258-code/Chunk-Vault/internal/api"
+	"github.com/karthik-258-code/Chunk-Vault/internal/vault"
 )
 
 func newTestServer(t *testing.T) *httptest.Server {
@@ -24,7 +24,7 @@ func newTestServer(t *testing.T) *httptest.Server {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { v.Close() })
-	return httptest.NewServer(api.NewRouter(v))
+	return httptest.NewServer(api.NewRouter(v, ""))
 }
 
 func TestPutGetRoundTrip(t *testing.T) {
@@ -227,6 +227,67 @@ func TestPassphraseInQueryParamRejected(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("passphrase in query: status = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestAPIKeyAuth(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "repo")
+	if err := vault.Init(dir); err != nil {
+		t.Fatal(err)
+	}
+	v, err := vault.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { v.Close() })
+
+	ts := httptest.NewServer(api.NewRouter(v, "test-secret"))
+	defer ts.Close()
+
+	// No key → 401
+	resp, err := http.Get(ts.URL + "/v1/files")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("no key: status = %d, want 401", resp.StatusCode)
+	}
+
+	// Wrong key → 401
+	req, _ := http.NewRequest("GET", ts.URL+"/v1/files", nil)
+	req.Header.Set("X-API-Key", "wrong")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("wrong key: status = %d, want 401", resp.StatusCode)
+	}
+
+	// Correct key via X-API-Key → 200
+	req, _ = http.NewRequest("GET", ts.URL+"/v1/files", nil)
+	req.Header.Set("X-API-Key", "test-secret")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("correct X-API-Key: status = %d, want 200", resp.StatusCode)
+	}
+
+	// Correct key via Bearer → 200
+	req, _ = http.NewRequest("GET", ts.URL+"/v1/files", nil)
+	req.Header.Set("Authorization", "Bearer test-secret")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("correct Bearer: status = %d, want 200", resp.StatusCode)
 	}
 }
 

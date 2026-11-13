@@ -57,7 +57,7 @@ flowchart LR
 | `internal/store` | `BlobStore` interface, filesystem implementation, S3/MinIO implementation, name refs. |
 | `internal/index` | bbolt-backed chunk refcount and file record cache. |
 | `internal/vault` | Service layer: Put, Get, List, Remove, Reindex, Verify, Stats, GC, Snapshots. |
-| `internal/api` | chi-based REST API wrapping vault operations. |
+| `internal/api` | chi-based REST API with optional API-key auth (constant-time comparison). |
 | `cmd/chunkvault` | CLI (cobra). |
 | `cmd/chunkvaultd` | REST API daemon. |
 
@@ -110,6 +110,7 @@ Key lifecycle:
 - **File names inside manifests** are encrypted along with the manifest blob.
 - **Integrity**: modifying, truncating, swapping or replacing a blob causes `get` to fail. The GCM tag covers the header and storage key; plaintext hash is rechecked after decode.
 - **Chunk equality tests**: storage keys are HMAC-keyed, so equal chunks cannot be identified without the key.
+- **REST API access**: when an API key is configured (`--api-key` or `CHUNKVAULT_API_KEY`), every request must carry a matching `Authorization: Bearer <key>` or `X-API-Key` header. The comparison uses `crypto/subtle.ConstantTimeCompare` to prevent timing attacks.
 
 ### Not protected
 
@@ -131,6 +132,12 @@ Write order for `put`:
 4. Update the index.
 
 A crash between steps 3 and 4 leaves a repository whose blobs and refs are consistent but whose index is stale. `reindex` repairs it. No data is lost. `get` and `ls` do not consult the index for correctness — only for performance.
+
+## Concurrency
+
+Within a single process, a `sync.RWMutex` on the Vault serialises writers (Put, Remove, GC, CreateSnapshot, RestoreFromSnapshot) and allows concurrent readers (Get, List, Stats, Verify, ListSnapshots). The REST API benefits from this: concurrent GET requests proceed in parallel while a PUT blocks other writers.
+
+Across processes, bbolt's file lock prevents two openers on the same `index.db`. A second CLI or daemon targeting the same repository directory will block (or fail with a timeout) until the first releases the lock.
 
 ## Snapshots
 

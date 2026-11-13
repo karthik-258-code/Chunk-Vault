@@ -37,6 +37,7 @@ services:
     environment:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
+      CHUNKVAULT_API_KEY: ${CHUNKVAULT_API_KEY:-}
     command:
       - --repo=/data/repo
       - --addr=:8080

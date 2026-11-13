@@ -15,9 +15,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/api"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/vault"
+	"github.com/karthik-258-code/Chunk-Vault/internal/api"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/vault"
 )
 
 var version = "dev"
@@ -38,6 +38,7 @@ func rootCmd() *cobra.Command {
 		repo       string
 		addr       string
 		passphrase string
+		apiKey     string
 		s3Bucket   string
 		s3Region   string
 		s3Endpoint string
@@ -80,7 +81,7 @@ func rootCmd() *cobra.Command {
 			}
 			defer v.Close()
 
-			handler := api.NewRouter(v)
+			handler := api.NewRouter(v, apiKey)
 			srv := &http.Server{Addr: addr, Handler: handler}
 
 			go func() {
@@ -101,6 +102,7 @@ func rootCmd() *cobra.Command {
 	cmd.Flags().StringVar(&repo, "repo", "./.chunkvault", "path to the chunkvault repository")
 	cmd.Flags().StringVar(&addr, "addr", ":8080", "listen address")
 	cmd.Flags().StringVar(&passphrase, "passphrase", os.Getenv("CHUNKVAULT_PASSPHRASE"), "repository passphrase (or use CHUNKVAULT_PASSPHRASE env)")
+	cmd.Flags().StringVar(&apiKey, "api-key", os.Getenv("CHUNKVAULT_API_KEY"), "API key for authentication (or use CHUNKVAULT_API_KEY env)")
 	cmd.Flags().StringVar(&s3Bucket, "s3-bucket", "", "S3 bucket name (uses S3 backend when set)")
 	cmd.Flags().StringVar(&s3Region, "s3-region", "us-east-1", "AWS region for S3 backend")
 	cmd.Flags().StringVar(&s3Endpoint, "s3-endpoint", "", "S3-compatible endpoint URL")

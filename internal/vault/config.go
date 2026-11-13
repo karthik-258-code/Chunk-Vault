@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/chunker"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/codec"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/keys"
+	"github.com/karthik-258-code/Chunk-Vault/internal/chunker"
+	"github.com/karthik-258-code/Chunk-Vault/internal/codec"
+	"github.com/karthik-258-code/Chunk-Vault/internal/keys"
 )
 
 const (

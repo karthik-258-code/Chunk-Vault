@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/index"
-	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
+	"github.com/karthik-258-code/Chunk-Vault/internal/index"
+	"github.com/karthik-258-code/Chunk-Vault/internal/store"
 )
 
 const snapshotBlobVersion = 1
@@ -43,6 +43,8 @@ type snapshotBlob struct {
 // tag. The tag must be a valid ref name. A concurrent put or rm may or may not
 // be reflected; the snapshot records a consistent point in time.
 func (v *Vault) CreateSnapshot(ctx context.Context, tag string) (Snapshot, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	if err := store.ValidateName(tag); err != nil {
 		return Snapshot{}, fmt.Errorf("vault: snapshot tag: %w", err)
 	}
@@ -89,6 +91,8 @@ func (v *Vault) CreateSnapshot(ctx context.Context, tag string) (Snapshot, error
 
 // ListSnapshots returns all snapshots in ascending tag order.
 func (v *Vault) ListSnapshots(ctx context.Context) ([]Snapshot, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	tags, err := v.snapshotRefs.List()
 	if err != nil {
 		return nil, err
@@ -114,6 +118,8 @@ func (v *Vault) ListSnapshots(ctx context.Context) ([]Snapshot, error) {
 // — this is a restore, not a rollback: files added after the snapshot are not
 // deleted. Blobs for the restored versions must still be present in the store.
 func (v *Vault) RestoreFromSnapshot(ctx context.Context, tag string) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	snap, err := v.loadSnapshotByTag(ctx, tag)
 	if err != nil {
 		return err
