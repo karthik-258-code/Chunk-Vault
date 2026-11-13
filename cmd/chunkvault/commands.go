@@ -16,6 +16,7 @@ import (
 	"golang.org/x/term"
 
 	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/keys"
+	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/store"
 	"gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43223301/chunkvault/internal/vault"
 )
 
@@ -97,16 +98,23 @@ func passphraseOption(cmd *cobra.Command) vault.Option {
 	})
 }
 
-// openVault opens the repository at repo, asking for the passphrase if it is
-// encrypted. The caller must Close the vault.
+// openVault opens the local filesystem repository at repo.
 func openVault(cmd *cobra.Command, repo string) (*vault.Vault, error) {
 	return vault.Open(repo, passphraseOption(cmd))
+}
+
+// s3Flags holds the S3 backend flags shared across all commands.
+type s3Flags struct {
+	bucket   string
+	region   string
+	endpoint string
 }
 
 // newRootCmd builds the command tree, writing normal output to stdout and
 // diagnostics to stderr.
 func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	var repo string
+	var s3f s3Flags
 
 	root := &cobra.Command{
 		Use:           "chunkvault",
@@ -118,19 +126,35 @@ func newRootCmd(stdout, stderr io.Writer) *cobra.Command {
 	root.SetOut(stdout)
 	root.SetErr(stderr)
 	root.PersistentFlags().StringVar(&repo, "repo", defaultRepo, "path to the chunkvault repository")
+	root.PersistentFlags().StringVar(&s3f.bucket, "s3-bucket", "", "S3 bucket name (uses S3 backend when set)")
+	root.PersistentFlags().StringVar(&s3f.region, "s3-region", "us-east-1", "AWS region for S3 backend")
+	root.PersistentFlags().StringVar(&s3f.endpoint, "s3-endpoint", "", "S3-compatible endpoint URL (e.g. http://localhost:9000)")
 
 	root.AddCommand(
 		newInitCmd(),
-		newPutCmd(&repo),
-		newGetCmd(&repo),
-		newLsCmd(&repo),
-		newRmCmd(&repo),
-		newReindexCmd(&repo),
-		newVerifyCmd(&repo),
-		newStatsCmd(&repo),
-		newGCCmd(&repo),
+		newPutCmd(&repo, &s3f),
+		newGetCmd(&repo, &s3f),
+		newLsCmd(&repo, &s3f),
+		newRmCmd(&repo, &s3f),
+		newReindexCmd(&repo, &s3f),
+		newVerifyCmd(&repo, &s3f),
+		newStatsCmd(&repo, &s3f),
+		newGCCmd(&repo, &s3f),
 	)
 	return root
+}
+
+// openVaultS3 opens a vault, using the S3 backend when --s3-bucket is set,
+// otherwise falling back to the local filesystem backend.
+func openVaultS3(cmd *cobra.Command, repo string, s3f *s3Flags) (*vault.Vault, error) {
+	if s3f.bucket == "" {
+		return vault.Open(repo, passphraseOption(cmd))
+	}
+	blobs, err := store.NewS3(cmd.Context(), s3f.bucket, s3f.region, s3f.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	return vault.OpenWithStore(repo, blobs, passphraseOption(cmd))
 }
 
 func newInitCmd() *cobra.Command {
@@ -170,7 +194,7 @@ func newInitCmd() *cobra.Command {
 	return cmd
 }
 
-func newPutCmd(repo *string) *cobra.Command {
+func newPutCmd(repo *string, s3f *s3Flags) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
 		Use:   "put <file>",
@@ -207,7 +231,7 @@ func newPutCmd(repo *string) *cobra.Command {
 				}
 			}
 
-			v, err := openVault(cmd, *repo)
+			v, err := openVaultS3(cmd, *repo, s3f)
 			if err != nil {
 				return err
 			}
@@ -237,7 +261,7 @@ func printPutStats(w io.Writer, name string, s vault.PutStats, elapsed time.Dura
 	fmt.Fprintln(w, ")")
 }
 
-func newGetCmd(repo *string) *cobra.Command {
+func newGetCmd(repo *string, s3f *s3Flags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <name> <outfile>",
 		Short: "Restore a stored file to <outfile>",
@@ -246,7 +270,7 @@ func newGetCmd(repo *string) *cobra.Command {
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, out := args[0], args[1]
-			v, err := openVault(cmd, *repo)
+			v, err := openVaultS3(cmd, *repo, s3f)
 			if err != nil {
 				return err
 			}
@@ -303,13 +327,13 @@ func outputMode(out string) os.FileMode {
 	return 0o644
 }
 
-func newLsCmd(repo *string) *cobra.Command {
+func newLsCmd(repo *string, s3f *s3Flags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "ls",
 		Short: "List stored files",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			v, err := openVault(cmd, *repo)
+			v, err := openVaultS3(cmd, *repo, s3f)
 			if err != nil {
 				return err
 			}
@@ -329,7 +353,7 @@ func newLsCmd(repo *string) *cobra.Command {
 	}
 }
 
-func newRmCmd(repo *string) *cobra.Command {
+func newRmCmd(repo *string, s3f *s3Flags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "rm <name>",
 		Short: "Remove a stored file",
@@ -339,7 +363,7 @@ func newRmCmd(repo *string) *cobra.Command {
 			"affected.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			v, err := openVault(cmd, *repo)
+			v, err := openVaultS3(cmd, *repo, s3f)
 			if err != nil {
 				return err
 			}
@@ -353,7 +377,7 @@ func newRmCmd(repo *string) *cobra.Command {
 	}
 }
 
-func newReindexCmd(repo *string) *cobra.Command {
+func newReindexCmd(repo *string, _ *s3Flags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "reindex",
 		Short: "Rebuild the index from the stored files",
@@ -375,7 +399,7 @@ func newReindexCmd(repo *string) *cobra.Command {
 	}
 }
 
-func newVerifyCmd(repo *string) *cobra.Command {
+func newVerifyCmd(repo *string, s3f *s3Flags) *cobra.Command {
 	var full bool
 	cmd := &cobra.Command{
 		Use:   "verify [--full]",
@@ -391,7 +415,7 @@ func newVerifyCmd(repo *string) *cobra.Command {
 			"but reads the whole repository. An encrypted repository needs its passphrase.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			v, err := openVault(cmd, *repo)
+			v, err := openVaultS3(cmd, *repo, s3f)
 			if err != nil {
 				return err
 			}
@@ -443,7 +467,7 @@ func plural(n int, noun string) string {
 	return fmt.Sprintf("%d %ss", n, noun)
 }
 
-func newGCCmd(repo *string) *cobra.Command {
+func newGCCmd(repo *string, s3f *s3Flags) *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{
 		Use:   "gc [--dry-run]",
@@ -455,7 +479,7 @@ func newGCCmd(repo *string) *cobra.Command {
 			"'chunkvault reindex' repairs a stale index before GC sees it.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			v, err := openVault(cmd, *repo)
+			v, err := openVaultS3(cmd, *repo, s3f)
 			if err != nil {
 				return err
 			}
@@ -479,7 +503,7 @@ func newGCCmd(repo *string) *cobra.Command {
 	return cmd
 }
 
-func newStatsCmd(repo *string) *cobra.Command {
+func newStatsCmd(repo *string, s3f *s3Flags) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "stats [--json]",
@@ -492,7 +516,7 @@ func newStatsCmd(repo *string) *cobra.Command {
 			"with stable snake_case keys.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			v, err := openVault(cmd, *repo)
+			v, err := openVaultS3(cmd, *repo, s3f)
 			if err != nil {
 				return err
 			}

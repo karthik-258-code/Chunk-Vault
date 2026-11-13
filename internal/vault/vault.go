@@ -247,6 +247,45 @@ func Open(dir string, opts ...Option) (*Vault, error) {
 	return v, nil
 }
 
+// OpenWithStore opens the repository in dir using the supplied BlobStore
+// instead of the default filesystem store. The refs and config are still read
+// from dir. Use this to plug in an S3 or other remote backend.
+func OpenWithStore(dir string, blobs store.BlobStore, opts ...Option) (*Vault, error) {
+	cfg, err := readConfig(dir)
+	if err != nil {
+		return nil, err
+	}
+	var probe Vault
+	for _, o := range opts {
+		o(&probe)
+	}
+	c, err := cfg.newCodec(dir, probe.pass)
+	if err != nil {
+		return nil, err
+	}
+	refs, err := store.NewRefs(dir)
+	if err != nil {
+		return nil, err
+	}
+	v, err := build(blobs, refs, c, append([]Option{WithChunkerConfig(cfg.chunkerConfig())}, opts...)...)
+	if err != nil {
+		return nil, err
+	}
+	path := filepath.Join(dir, indexFile)
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("%w: %s has no %s; run 'chunkvault reindex' to build it", ErrIndexMissing, dir, indexFile)
+		}
+		return nil, fmt.Errorf("vault: stat index: %w", err)
+	}
+	x, err := index.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("vault: %w", err)
+	}
+	v.idx = x
+	return v, nil
+}
+
 // openParts builds the Vault for the repository in dir without its index.
 func openParts(dir string, opts []Option) (*Vault, error) {
 	cfg, err := readConfig(dir)
