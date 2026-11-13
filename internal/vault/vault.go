@@ -78,12 +78,12 @@ var (
 // repairs it by rebuilding the index from the refs. Anything destructive that
 // trusts reference counts, such as garbage collection, must run Reindex first.
 type Vault struct {
-	blobs         store.BlobStore
-	refs          *store.Refs
-	snapshotRefs  *store.Refs
-	idx           *index.Index
-	codec         *codec.Codec
-	cfg           chunker.Config
+	blobs        store.BlobStore
+	refs         *store.Refs
+	snapshotRefs *store.Refs
+	idx          *index.Index
+	codec        *codec.Codec
+	cfg          chunker.Config
 	// pass supplies the passphrase of an encrypted repository to Open.
 	pass func() ([]byte, error)
 	now  func() time.Time

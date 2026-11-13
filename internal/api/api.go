@@ -184,4 +184,3 @@ func writeError(w http.ResponseWriter, err error) {
 	}
 	http.Error(w, fmt.Sprintf(`{"error":%q}`, msg), code)
 }
-

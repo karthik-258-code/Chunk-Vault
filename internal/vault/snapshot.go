@@ -185,4 +185,3 @@ func (v *Vault) loadSnapshotByTag(ctx context.Context, tag string) (Snapshot, er
 	}
 	return Snapshot{Tag: blob.Tag, Created: blob.Created, Files: blob.Files}, nil
 }
-

@@ -254,4 +254,3 @@ func TestSlashedFileName(t *testing.T) {
 		t.Fatalf("GET slashed = %q, want %q", got, body)
 	}
 }
-
