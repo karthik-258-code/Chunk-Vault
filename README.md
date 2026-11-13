@@ -239,16 +239,24 @@ The chunker is covered by [rapid](https://pkg.go.dev/pgregory.net/rapid) propert
 
 ### Benchmarks
 
-Chunking throughput with default parameters on random data (Intel Xeon Platinum 8581C @ 2.10 GHz, 2 vCPUs, Go 1.22, `go test -bench`; single-threaded, in-memory source, excludes hashing and disk I/O):
+Chunker throughput (Windows 11, 13th Gen Intel Core i7-13620H 16-core, Go 1.24, `go test -bench -benchtime=3s`; single-threaded, in-memory source, excludes hashing and disk I/O):
 
 | Benchmark                   | Throughput  | Allocs/op |
 | --------------------------- | ----------- | --------- |
-| `default/1MiB`              | ~1360 MB/s  | 3         |
-| `default/16MiB`             | ~1450 MB/s  | 3         |
-| `default/64MiB`             | ~1385 MB/s  | 3         |
-| `small/16MiB` (2/8/32 KiB)  | ~1560 MB/s  | 3         |
+| `default/1MiB`              | ~953 MB/s   | 3         |
+| `default/16MiB`             | ~468 MB/s   | 3         |
+| `default/64MiB`             | ~457 MB/s   | 3         |
+| `small/16MiB` (2/8/32 KiB)  | ~453 MB/s   | 3         |
 
-Numbers vary by machine; run `make bench` for your own. End-to-end `put` throughput is dominated by SHA-256 and fsync.
+End-to-end benchmarks (20 MiB random data, local NVMe):
+
+| Benchmark                    | Throughput  | Notes                        |
+| ---------------------------- | ----------- | ---------------------------- |
+| `BenchmarkPutGetRoundtrip`   | ~2.8 MB/s   | fsync-bound on Windows       |
+| `BenchmarkPutDeduplicated`   | ~99 MB/s    | second put of same content   |
+| `BenchmarkPutParallel`       | ~18 MB/s    | 64 MiB, 4 workers            |
+
+Numbers vary by machine and OS; run `make bench` and `make bench-e2e` for your own. Linux benchmarks run faster — the end-to-end put rate is dominated by fsync on Windows. The deduplication path confirms that re-putting identical content pays only manifest overhead. See [docs/design.md](docs/design.md) for a full breakdown.
 
 ## CI
 
@@ -261,4 +269,4 @@ Numbers vary by machine; run `make bench` for your own. End-to-end `put` through
 - [x] **M2b** – bbolt index; `rm`, `reindex`, `verify` and `stats` commands.
 - [x] **M2c** – parallel worker pool; end-to-end benchmarks; SAST cleanup.
 - [x] **M3** – Mark-and-sweep garbage collection; S3/MinIO backend; REST API (chi); docker-compose.
-- [ ] **M4** – Snapshots; benchmark results on a real dataset; `docs/design.md`; v1.0.0 release.
+- [x] **M4** – Snapshots; benchmark results on a real dataset; `docs/design.md`; v1.0.0 release.

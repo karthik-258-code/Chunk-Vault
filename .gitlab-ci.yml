@@ -2,6 +2,7 @@ stages:
   - lint
   - test
   - build
+  - release
 
 include:
   # GitLab SAST (runs in the "test" stage).
@@ -66,9 +67,30 @@ build:
     CGO_ENABLED: "0"
   script:
     - mkdir -p dist
-    - go build -trimpath -ldflags "-s -w -X main.version=${CI_COMMIT_SHORT_SHA}" -o dist/chunkvault-${GOOS}-${GOARCH} ./cmd/chunkvault
+    - go build -trimpath -ldflags "-s -w -X main.version=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" -o dist/chunkvault-${GOOS}-${GOARCH} ./cmd/chunkvault
+    - go build -trimpath -ldflags "-s -w -X main.version=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" -o dist/chunkvaultd-${GOOS}-${GOARCH} ./cmd/chunkvaultd
     - ls -l dist
   artifacts:
     expire_in: 1 week
     paths:
       - dist/
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  needs:
+    - build
+  script:
+    - echo "Creating release $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: "ChunkVault $CI_COMMIT_TAG"
+    description: "Release $CI_COMMIT_TAG"
+    assets:
+      links:
+        - name: chunkvault-linux-amd64
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/dist/chunkvault-linux-amd64?job=build%3A+%5Bamd64%5D"
+        - name: chunkvault-linux-arm64
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/dist/chunkvault-linux-arm64?job=build%3A+%5Barm64%5D"

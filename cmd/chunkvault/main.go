@@ -10,7 +10,7 @@ import (
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
-var version = "dev"
+var version = "1.0.0"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
