@@ -39,29 +39,22 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
+    services:
+      minio:
+        image: bitnami/minio:latest
+        ports:
+          - 9000:9000
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+          MINIO_DEFAULT_BUCKETS: chunkvault-test
+        options: --health-cmd "curl -sf http://localhost:9000/minio/health/live || exit 1" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
-      - name: start minio
-        run: |
-          docker run -d --name minio -p 9000:9000 \
-            -e MINIO_ROOT_USER=minioadmin \
-            -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio:latest server /data
-          # Wait for MinIO to become healthy.
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:9000/minio/health/live; then break; fi
-            sleep 1
-          done
-      - name: create test bucket
-        run: |
-          curl -sSf https://dl.min.io/client/mc/release/linux-amd64/mc \
-            -o "$HOME/mc" && chmod +x "$HOME/mc"
-          "$HOME/mc" alias set local http://localhost:9000 minioadmin minioadmin
-          "$HOME/mc" mb local/chunkvault-test
       - name: s3 integration test
         env:
           CHUNKVAULT_TEST_S3_BUCKET: chunkvault-test
